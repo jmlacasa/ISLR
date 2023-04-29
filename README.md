@@ -1,2 +1,4 @@
 # ISLR
-Excercises from the book Introduction to Statistical Learning
+Excercise attempts from the book "An Introduction to Statistical Learning" using RStudio
+https://www.statlearning.com/
+
