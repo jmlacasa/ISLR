@@ -1,0 +1,11 @@
+---
+title: "Chapter N ..."
+output: html_notebook
+---
+
+## __Conceptual__
+__1.__ __(a)__
+
+__(b)__
+
+## __Applied__

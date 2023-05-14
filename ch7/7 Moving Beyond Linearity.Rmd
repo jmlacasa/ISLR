@@ -1,0 +1,151 @@
+---
+title: "Chapter 7 Moving Beyond Linearity"
+output: html_notebook
+---
+
+## __Conceptual__
+__1.__ __(a)__
+
+
+__(b)__
+
+## __Applied__
+```{r}
+library(ISLR2)
+library(boot)
+
+
+attach(Wage)
+```
+
+__6.__ __(a)__
+
+```{r}
+set.seed(1)
+spl = sample(1:nrow(Wage), size=0.7 * nrow(Wage))
+train = Wage[spl,]
+test = Wage[-spl,]
+train_rss = c(1:8)
+test_rss = c(1:8)
+
+for (i in 1:8) {
+  lm.fit = lm(wage~poly(age,i), data = train)
+  lm.pred_train = predict.lm(lm.fit, train)
+  lm.pred = predict.lm(lm.fit, test)
+  train_rss[i] = sum((lm.pred_train - train$wage)**2) / nrow(train)
+  test_rss[i] = sum((lm.pred - test$wage)**2) / nrow(test)
+  
+}
+```
+
+```{r}
+plot(test_rss, type="b", xlab="degree", ylab="Error")
+```
+
+```{r}
+# Cross validation to choose degree of polynomial.
+set.seed(1)
+cv.error.10 = rep(0,10)
+for (i in 1:10) {
+  glm.fit=glm(wage~poly(age,i),data=Wage)
+  cv.error.10[i]=cv.glm(Wage,glm.fit,K=10)$delta[1]
+}
+cv.error.10
+plot(cv.error.10, type="b", xlab="Degree", ylab="CV Error")
+```
+ANOVA TEST
+```{r}
+
+lm.fit1=lm(wage~poly(age,1),data=Wage)
+lm.fit2=lm(wage~poly(age,2),data=Wage)
+lm.fit3=lm(wage~poly(age,3),data=Wage)
+lm.fit4=lm(wage~poly(age,4),data=Wage)
+lm.fit5=lm(wage~poly(age,5),data=Wage)
+
+anova(glm.fit1, glm.fit2, glm.fit3, glm.fit4, glm.fit5)
+
+```
+The results show a decrease in statistical significance of model p-values for higher order polynomials.
+Specifically comparison between 4 and 5th degree models barely higher than 5% p-value.
+We would probably choose a order 3 or 4 polynomial to explain wage.
+
+```{r}
+
+agelims=range(age)
+age.grid=seq(from=agelims[1],to=agelims[2])
+
+# Predictions.
+preds=predict(lm.fit4,newdata=list(age=age.grid),se=TRUE)
+se.bands=cbind(preds$fit+2*preds$se.fit,preds$fit-2*preds$se.fit)
+
+
+plot(age, wage,cex=.5)
+title("Polynomial fit using degree 4")
+lines(age.grid,preds$fit,lwd=2,col="blue")
+matlines(age.grid,se.bands,lwd =1,col="blue",lty =3)
+```
+
+__(b)__
+
+
+```{r}
+# pick cutting points for the step function
+table(cut(age, 4))
+
+fit = glm(wage ~ cut(age, 4), data = Wage)
+coef(summary(fit))
+
+```
+
+
+
+
+```{r}
+# Cross validation to choose the optimal number of cuts
+library(boot)
+
+set.seed(1)
+cv.error.cuts = rep(NA,19)
+for (i in 2:20) {
+  Wage$age.cut = cut(age, i)
+  glm.fit=glm(wage ~ age.cut, data = Wage)
+  cv.error.cuts[i]=cv.glm(Wage, glm.fit, K=10)$delta[1]
+}
+
+cv.error.cuts
+plot(cv.error.cuts, type="b", xlab="Degree", ylab="CV Error")
+```
+
+After 8 cuts there is no significant drop in CV error that justifies the increase in complexity.
+
+
+```{r}
+agelims=range(age)
+age.grid=seq(from=agelims[1],to=agelims[2])
+
+# Predictions.
+lm.fit = lm(wage ~ cut(age, 8), data=Wage)
+preds=predict(lm.fit,newdata=list(age=age.grid),se=TRUE)
+se.bands=cbind(preds$fit+2*preds$se.fit,preds$fit-2*preds$se.fit)
+
+
+plot(age, wage, cex=.5, col="darkgrey")
+title("Step function using 8 cuts")
+lines(age.grid,preds$fit,lwd=2,col="blue")
+matlines(age.grid,se.bands,lwd =1,col="blue",lty =3)
+```
+
+__(7)__
+__(a)__
+
+
+
+
+
+
+
+
+
+
+
+
