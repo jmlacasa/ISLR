@@ -137,15 +137,207 @@ matlines(age.grid,se.bands,lwd =1,col="blue",lty =3)
 
 __(7)__
 __(a)__
+```{r}
+summary(Wage)
+```
+## explore other relationships with explained wage variable
+we will ignore region as there is only 1 possible value
+we will explore year (to account for inflation), education, health, jobclass 
+```{r}
+# explore other relationships with wage variable
+
+library(splines)
+fit = smooth.spline(wage ~ age, df=3)
+fit2 = smooth.spline(wage ~ age, cv=TRUE)
+fit2$df
+plot (age , wage , cex = .5, col = " darkgrey ")
+lines (fit , col = " red ", lwd = 2)
+lines (fit2 , col = " blue ", lwd = 2)
+legend ("bottomright", legend = c("3", fit2$df),
+col = c("red", "blue"), lty = 1, lwd = 2, cex = .8)
+
+```
 
 
 
+```{r}
+boxplot(wage ~ education)
+boxplot(wage ~ maritl)
+boxplot(wage ~ jobclass)
+```
+### education:
+There is a general rising trend with outliers in education higher than HS Grad. In general the outliers are further away from the main bell curve for lower levels of education.
+
+### marital status
+High amount of outliers with married and never married people.
+Married people seem to have higher income. 
+
+### job class
+Information seems to have slightly higher mean value and deviation
+
+```{r}
+library(gam)
+```
+```{r}
+fit = gam(wage ~ jobclass)
+summary(fit)
+coef(fit)
+plot ( fit , se = TRUE , col = " blue ")
+```
+
+
+```{r}
+fit = gam(wage ~ s(age, 4) + jobclass + education)
+summary(fit)
+par ( mfrow = c(1, 3))
+plot ( fit , se = TRUE , col = " blue ")
+#plot(maritl , wage , cex = .5, col = " darkgrey ")
+#lines(fit , col = " red ", lwd = 2)
+#legend("bottomright", legend = c(fit1$df),
+#col = c("red"), lty = 1, lwd = 2, cex = .8)
+```
 
 
 
+__(8)__
+```{r}
+detach(Wage)
+attach(Auto)
+help(Auto)
+```
+__(a)__
+```{r}
+pairs(Auto)
+
+```
+The Auto dataset looks to have non-linear relationships with displacement, horsepower, weight and maybe year from the pair plots displayed above
+
+```{r}
+plot(displacement, mpg)
+plot(horsepower, mpg)
+plot(weight, mpg)
+plot(year, mpg)
+
+```
+
+
+```{r}
+fit = smooth.spline(mpg ~ horsepower, cv=TRUE)
+
+fit$df
+
+plot (horsepower, mpg, cex = .5, col = " darkgrey ")
+lines (fit , col = "red", lwd = 2)
+legend ("topright", legend = c(fit2$df),
+col = c("red"), lty = 1, lwd = 2, cex = .8)
+```
 
 
 
+```{r}
+fit = smooth.spline(mpg ~ displacement, cv=TRUE)
+
+fit$df
+
+plot (displacement, mpg, cex = .5, col = " darkgrey ")
+lines (fit , col = "red", lwd = 2)
+legend ("topright", legend = c(fit2$df),
+col = c("red"), lty = 1, lwd = 2, cex = .8)
+```
 
 
+```{r}
+fit = smooth.spline(mpg ~ displacement, cv=TRUE)
+cv.error = rep(NA, 10)
+for (i in 1:10){
+  fit = glm(mpg~displacement, data=Auto)
+  cv.error[i] = cv.glm(Auto, fit, K=10)$delta[1]
+}
+plot(cv.error, type = 'b')
+```
+
+
+```{r}
+fit1 = glm(mpg ~ displacement)
+fit3 = glm(mpg ~ poly(displacement, 3))
+fit4 = glm(mpg ~ poly(displacement, 4))
+displim = range(displacement)
+disp.grid = seq(displim[1], displim[2])
+preds1 = predict(fit1, newdata = list(displacement=disp.grid))
+preds3 = predict(fit3, newdata = list(displacement=disp.grid))
+preds4 = predict(fit4, newdata = list(displacement=disp.grid))
+plot (displacement, mpg, cex = .5, col = " darkgrey ")
+lines (preds1, col = "red", lwd = 2)
+lines (preds3, col = "blue", lwd = 2)
+lines (preds4, col = "green", lwd = 2)
+legend ("topright", legend = c("linear fit", "cubic fit", "quartic fit"),
+col = c("red", "blue", "green"), lty = 1, lwd = 2, cex = .8)
+```
+
+__(9)__
+```{r}
+detach(Auto)
+attach(Boston)
+help(Boston)
+```
+__(a)__ __(b)__ __(c)__
+```{r}
+cv.error = rep(NA, 10)
+for (i in 1:10){
+  glm.fit = glm(nox~poly(dis,i))
+  cv.error[i] = cv.glm(Boston, glm.fit, K=10)$delta[1]
+}
+plot(cv.error, type='b')
+```
+2nd degree polynomial seems to be optimal since there is no considerable improvement for higher order polynomials.
+
+```{r}
+glm.fit1 = glm(nox~poly(dis, 1), data = Boston)
+glm.fit2 = glm(nox~poly(dis, 2), data = Boston)
+glm.fit3 = glm(nox~poly(dis, 3), data = Boston)
+glm.fit4 = glm(nox~poly(dis, 4), data = Boston)
+glm.fit5 = glm(nox~poly(dis, 5), data = Boston)
+glm.fit6 = glm(nox~poly(dis, 6), data = Boston)
+
+dislim = range(dis)
+dis.grid = seq(dislim[1], dislim[2])
+
+pred1 = predict(glm.fit1, newdata=list(dis=dis.grid))
+pred2 = predict(glm.fit2, newdata=list(dis= dis.grid))
+pred3 = predict(glm.fit3, newdata=list(dis= dis.grid))
+pred4 = predict(glm.fit4, newdata=list(dis= dis.grid))
+pred5 = predict(glm.fit5, newdata=list(dis= dis.grid))
+pred6 = predict(glm.fit6, newdata=list(dis= dis.grid))
+
+plot(dis, nox, col="darkgrey", cex=.5)
+lines(pred1, col="blue", lwd=2)
+lines(pred2, col="green", lwd=2)
+lines(pred3, col="red", lwd=2)
+lines(pred4, col="violet", lwd=2)
+
+```
+__(d)__
+```{r}
+lm.fit = lm(nox ~ bs(dis, df=4), data=Boston)
+
+preds = predict(lm.fit, newdata=list(dis=dis.grid), se=T)
+
+attr(bs(dis, df=4), "knots")
+summary(lm.fit)
+
+
+plot(dis, nox, col="darkgray", cex=.5)
+lines(preds$fit, col="blue", lwd=2)
+lines(preds$fit+2*preds$se, lty="dashed")
+lines(preds$fit-2*preds$se, lty="dashed")
+
+```
+- knots are automatically selected automatically at uniform quantiles (1 knot means 50th quantile)
+- summary() of the model shows that the model is statistically significant.
+- The fit is similar to the 3rd degree polynomial fit.
+
+__(e)__
+```{r}
+
+```
 
