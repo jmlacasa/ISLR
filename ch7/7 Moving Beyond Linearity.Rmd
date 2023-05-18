@@ -338,6 +338,124 @@ lines(preds$fit-2*preds$se, lty="dashed")
 
 __(e)__
 ```{r}
+rss = rep(NA, 15)
+for (i in 3:17){
+  lm.fit = lm(nox ~ bs(dis, df=i), data=Boston)
+  preds = predict(lm.fit, newdata=Boston)
+  rss[i] = sum((preds - nox)**2)
+}
+plot(rss)
 
 ```
+After 10 degrees of freedom there isnt a noticeable reduction in train RSS.
+
+
+```{r}
+lm.fit = lm(nox ~ bs(dis, df=10), data=Boston)
+pred = predict(lm.fit, newdata=list(dis=dis.grid))
+plot(dis, nox, col="darkgray", cex=.5)
+lines(pred, col="blue", lwd=2)
+```
+__(f)__
+
+
+```{r}
+rss.train = rep(NA, 17)
+rss.test = rep(NA, 17)
+for (i in 3:19){
+  glm.fit = glm(nox ~ bs(dis, df=i), data=Boston)
+  preds = predict(glm.fit, newdata=Boston)
+  rss.train[i-2] = mean((preds - nox)**2)
+  
+  rss.test[i-2] = cv.glm(Boston, glm.fit, K=10)$delta[1]
+  
+}
+rss.lim = c(min(min(rss.test), min(rss.train)), max(max(rss.test), max(rss.train)))
+plot(3:19, rss.test, type='b', col="orange", ylim=c(rss.lim[1], rss.lim[2]), ylab="error")
+lines(3:19, rss.train, type='b', col="blue", lwd=2)
+legend("bottomleft", legend=c("rss.train", "rss.test"), col = par("blue", "orange"), lty = 1, lwd = 2, cex = .8)
+
+```
+
+Cross validation error shows a significant drop in rss error for 5-6 degrees of freedom (orange). There is not sufficient evidence to choose a greater value than 6 degrees of freedom.
+
+
+
+__(10)__
+
+```{r}
+detach(Boston)
+attach(College)
+
+require(caTools)
+```
+
+
+```{r}
+college.sample = sample.split(College$Outstate, SplitRatio = 0.80)
+college.train = College[college.sample,]
+college.test = College[college.sample==FALSE,]
+
+```
+
+
+### step forward feature selection
+```{r}
+## picking the best 8 variables for model prediction according to step-forward selection
+regfit.full = regsubsets(Outstate~., data = college.train, nvmax=17)
+regfit.summary = summary(regfit.full)
+
+plot ( regfit.full , scale = "r2")
+plot ( regfit.full , scale = "adjr2")
+plot ( regfit.full , scale = "Cp")
+plot ( regfit.full , scale = "bic")
+plot (regfit.summary$adjr2)
+plot (regfit.summary$bic)
+```
+From the adjr2 and bic plot above there seems to top off with 6 variables and there are only small improvements after.
+
+
+```{r}
+# the chosen parameters are:
+coef(regfit.full, 6)
+```
+
+__(b)__
+```{r}
+gam.fit = gam(Outstate ~ Private + s(Room.Board, 4) + s(PhD, 4) + perc.alumni + s(Expend, 4) + s(Grad.Rate, 4), data=college.train)
+preds = predict(gam.fit, newdata = college.test)
+rss = mean((preds-college.test$Outstate)^2)
+mse
+
+plot(gam.fit, se=TRUE)
+```
+__(d)__
+### check if there is evidence of a non-linear relationship
+
+```{r}
+gam.fit = gam(Outstate ~ Private + Room.Board + PhD + perc.alumni + Expend + Grad.Rate, data=college.train)
+gam.fit1 = gam(Outstate ~ Private + Room.Board + PhD + perc.alumni + Expend + s(Grad.Rate, 4), data=college.train)
+gam.fit2 = gam(Outstate ~ Private + s(Room.Board, 4) + PhD + perc.alumni + Expend + Grad.Rate, data=college.train)
+gam.fit3 = gam(Outstate ~ Private + Room.Board + s(PhD, 4) + perc.alumni + Expend + Grad.Rate, data=college.train)
+gam.fit4 = gam(Outstate ~ Private + Room.Board + PhD + s(perc.alumni, 4) + Expend + Grad.Rate, data=college.train)
+gam.fit5 = gam(Outstate ~ Private + Room.Board + PhD + perc.alumni + s(Expend, 4) + Grad.Rate, data=college.train)
+
+anova(gam.fit, gam.fit1)
+anova(gam.fit, gam.fit2)
+anova(gam.fit, gam.fit3)
+anova(gam.fit, gam.fit4)
+anova(gam.fit, gam.fit5)
+
+```
+
+From the anova results above that compare a base model with linear relationship between variables to different models with non-linearity added to each specific variable we can tell that:
+
+- There is evidence for a non-linear relationship between Grad.Rate and Outstate (p-value of 3.2%)
+- PhD and Outstate (p-value of 0.16%)
+- same applies for Expend variable p-value < 2.2e-16
+- Room.Board barely misses the mark with a p-value > 6%
+
+
+
+
 
