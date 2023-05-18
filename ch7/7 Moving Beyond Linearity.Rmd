@@ -455,7 +455,124 @@ From the anova results above that compare a base model with linear relationship 
 - same applies for Expend variable p-value < 2.2e-16
 - Room.Board barely misses the mark with a p-value > 6%
 
+__(11)__
 
+__(a)__
+```{r}
+set.seed(5)
+
+# Generated dataset
+X1 = rnorm(100, sd=2)
+X2 = rnorm(100, sd=sqrt(2))
+eps = rnorm(100, sd = 1)
+b0 = 5; b1=2.5 ; b2=11.5
+Y = b0 +b1*X1 + b2*X2 + eps
+```
+__(b)(c)__
+keeping beta1 fixed estimate beta2
+
+```{r}
+beta1 = 10
+a = Y - beta1*X1
+beta2 = lm(a~X2)$coef[2]
+beta2
+```
+
+
+__(d)__
+keeping beta2 fixed, estimate a new beta1
+```{r}
+
+a = Y - beta2*X2
+beta1 = lm(a~X1)$coef[2]
+beta1
+```
+After just 1 iteration beta1 gets much closer to the real value
+
+__(c)__
+```{r}
+beta.estimates = matrix(NA, nrow=10, ncol=3)
+beta1 = 10
+
+for (i in 1:10){
+  a = Y - beta1*X1
+  beta2 = lm(a~X2)$coef[2]
+  a = Y - beta2*X2
+  lm.fit = lm(a~X1)
+  beta0 = lm.fit$coef[1] 
+  beta1 = lm.fit$coef[2]
+  beta.estimates[i,1] = beta0
+  beta.estimates[i,2] = beta1
+  beta.estimates[i,3] = beta2
+}
+
+plot(x=1:10, beta.estimates[,1], type='l', ylim=range(1:15), col="black")
+#lines(beta.estimates[,1], type='l')
+lines(beta.estimates[,2], type='l', col="blue")
+lines(beta.estimates[,3], type='l', col="red")
+
+#coefficient estimates from running multiple regression (results from f)
+#(Intercept)          X1          X2 
+#   4.996049    2.526440   11.536752 
+abline(h=4.996049, col="gray", lty=2)
+abline(h=2.526440, col="lightblue", lty=2)
+abline(h=11.536752, col="pink", lty=2)
+
+```
+__(f)__
+```{r}
+lm.fit = lm(Y ~ X1 + X2)
+lm.fit$coef
+```
+__(g)__
+Less tan 4 iterations were needed to get a very good approximation of the coefficients
+
+__(12)__
+
+```{r}
+set.seed(5)
+n = 1000
+p = 100
+# Generated dataset
+X = matrix(rnorm(n*p, sd=2), ncol=p)
+eps = rnorm(n, sd = 1)
+betas = rnorm(p, sd=2)+3
+b0 = 2.5
+Y = b0 + X %*% betas + eps
+
+```
+
+
+
+
+```{r}
+beta.estimates = matrix(0, nrow=20, ncol=p)
+beta0 = rep(10, 20)
+
+for (i in 1:20){
+  for (j in 1:p){
+    a = Y - X[,-j] %*% beta.estimates[i,-j]
+    lm.fit = lm(a~X[,j])
+    beta.estimates[i:20, j] = lm.fit$coef[2]
+  }
+  beta0[i:20] = lm.fit$coef[1]
+}
+```
+
+
+
+
+```{r}
+plot(x=1:20, beta0, type='l', ylim=range(-5:15), col="black")
+beta0
+colors = rainbow(10)
+for (i in 1:10){
+  lines(beta.estimates[,i], col=colors[i], type='l')
+  abline(h = betas[i], col=colors[i], lty=2)
+}
+
+```
+There seems to be convergence after the 3rd/4th iteration
 
 
 
