@@ -1,0 +1,412 @@
+---
+title: 'Ch.8 Exercises: Tree Based Methods'
+output:
+  html_document: default
+---
+
+# Conceptual excercises
+
+# __(3)__
+```{r}
+# 
+pm = 0.05*(1:20)
+g = 2*pm*(1-pm)
+d = -pm*log(pm) - (1-pm)*log((1-pm))
+e = pmin(pm, 1-pm)
+plot(x=pm, g, col="blue", ylim=c(0, 1))
+lines(x=pm, d, col="red")
+lines(x=pm, e, col="green")
+```
+
+
+# Applied exercises
+```{r}
+library(ISLR2)
+attach(Boston)
+library(tree)
+library(randomForest)
+require(caTools)
+set.seed(1)
+```
+
+# __(7)__
+
+```{r}
+# split test and train set
+train = sample(1:nrow(Boston), nrow(Boston)*0.8)
+Boston.test = Boston[-train,]
+
+```
+
+```{r}
+m.range = seq(1,13,by=1)
+
+ntree.range = c(1, seq(5,100, by=10))
+rf.mse = matrix(nrow=length(ntree.range), ncol=length(m.range))
+
+for (m in m.range){
+  for (n in 1:length(ntree.range)){
+    rf.fit = randomForest(medv~., data=Boston, subset=train, mtry=m, ntree=ntree.range[n])
+    rf.pred = predict(rf.fit, newdata=Boston.test)
+    
+    rf.mse[n, m] = mean((Boston.test$medv-rf.pred)**2)
+  }
+}
+```
+
+```{r}
+#plot results
+library(tidyr)
+colors = rainbow(length(m.range))
+
+#dev.new(width = 1000, height = 500, unit = "px",noRStudioGD = TRUE)
+plot(x=ntree.range, y=rf.mse[,1], col=colors[1], type='l', xlab='Number of Trees', ylab='Test MSE', lwd=2, ylim=c(5,50), )
+for (i in 2:length(m.range)){
+  lines(x=ntree.range, y=rf.mse[,i], col=colors[i], type='l', lwd=2)
+}
+
+legend("topright",legend=m.range, 
+       col=colors,lty=rep(1, length(m.range)), lwd=rep(2, length(m.range)))
+```
+-   test mse decreases rapidly as more trees are added to the RF
+-     It seems to balance at 40 trees
+-     Increasing the number of parameters decreases test MSE. The best value seems to be around 3-6 which is around sqrt(p)
+
+# __(8)__
+```{r}
+detach(Boston)
+attach(Carseats)
+```
+
+__(a)__
+```{r}
+# split test and train set
+train = sample(1:nrow(Carseats), nrow(Carseats)*0.8)
+Carseats.test = Carseats[-train,]
+
+```
+
+__(b)__
+```{r}
+set.seed(1)
+tree.fit = tree(Sales~., data=Carseats, subset=train)
+tree.preds = predict(tree.fit, newdata=Carseats.test)
+test_mse = mean((tree.preds-Carseats.test$Sales)**2)
+summary(tree.fit)
+test_mse
+plot(tree.fit)
+text(tree.fit, pretty=0)
+```
+- ShelveLoc and Price look to be the most significant variables.
+- Test Mse = 3.83
+
+__(c)__
+
+```{r}
+cv.carseats = cv.tree(tree.fit)
+plot(cv.carseats$size, cv.carseats$dev, type='b')
+```
+- The most complex tree (17 nodes) is selected with crossvalidation
+
+if we would want to prune the tree, we can do so like this:
+```{r}
+prune.carseats = prune.tree(tree.fit, best=12)
+tree.preds = predict(prune.carseats, newdata=Carseats.test)
+test_mse = mean((tree.preds-Carseats.test$Sales)**2)
+test_mse
+```
+__(d)__
+
+```{r}
+bag.carseats = randomForest(Sales~., data=Carseats, subset=train, mtry=dim(Carseats)[2]-1, importance=TRUE)
+
+yhat.bag = predict(bag.carseats, newdata=Carseats.test)
+test.mse = mean((yhat.bag-Carseats.test$Sales)**2)
+
+test.mse
+summary(bag.carseats)
+importance(bag.carseats)
+
+
+
+```
+- variable importance shows that ShelveLoc and Price are the most important by far.
+
+__(e)__
+```{r}
+
+
+m.range = seq(1,dim(Carseats)[2]-1,by=1)
+rf.mse = rep(NA, length(m.range))
+
+for (m in m.range){
+  
+  rf.fit = randomForest(Sales~., data=Carseats, subset=train, mtry=m, ntree=500)
+  rf.pred = predict(rf.fit, newdata=Carseats.test)
+  
+  rf.mse[m] = mean((Carseats.test$Sales-rf.pred)**2)
+  
+}
+```
+
+```{r}
+#plot results
+
+plot(x=m.range, y=rf.mse, col="blue", type='b', xlab='m variables', ylab='Test MSE', lwd=2, ylim=c(2,5), )
+```
+- increasing m for random forests decreases the test MSE until we reach the bagging mse where m=p
+```{r}
+which.min(rf.mse)
+```
+
+```{r}
+rf.fit = randomForest(Sales~., data=Carseats, subset=train, mtry=4, ntree=500, importance=TRUE)
+rf.pred = predict(rf.fit, newdata=Carseats.test)
+
+mean((Carseats.test$Sales-rf.pred)**2)
+importance(rf.fit)
+```
+Random forests seem to be less dependent on a specific variable compared to the bagging method.
+In bagging, each tree is highly correlated (picking similar splits)
+Test MSE is slightly lower than bagging using RF with m=9. 
+
+
+# __(9)__
+
+```{r}
+detach(Carseats)
+attach(OJ)
+```
+__(a)__
+
+```{r}
+# split test and train set
+set.seed(1)
+train = sample(1:nrow(OJ), 800)
+OJ.test = OJ[-train,]
+```
+
+```{r}
+#fit a regression tree
+tree.fit = tree(Purchase~., data=OJ, subset=train)
+summary(tree.fit)
+```
+There are 9 terminal nodes.
+the classification error rate is 15.88%
+
+__(c)__
+```{r}
+tree.fit
+```
+Terminal node 4) describes a region where LoyalCH < 0.0356415 (the parent node is implicit in this check LoyalCH < 0.5036 and 0.280875) the terminal node has 57 cases of MM and node purity of almost 1.
+Meaning customers with little loyalty to CH don't buy CH in this sample.
+
+__(d)__
+```{r}
+plot(tree.fit)
+text(tree.fit, pretty = 1)
+```
+__(e)__
+```{r}
+tree.preds = predict(tree.fit, newdata=OJ.test, type = 'class')
+tree.acc = mean(OJ.test$Purchase==tree.preds)
+tree.acc
+
+table(tree.preds, OJ.test$Purchase)
+```
+__(f)__
+```{r}
+cv.OJ = cv.tree(tree.fit, FUN=prune.misclass)
+plot(cv.OJ$size, cv.OJ$dev, type='b')
+plot(cv.OJ$k, cv.OJ$dev, type='b')
+```
+__(h)(i)__
+```{r}
+# best size according to crossvalidation
+cv.OJ$size[which.min(cv.OJ$dev)]
+```
+
+
+```{r}
+prune.OJ = prune.misclass(tree.fit, best=7)
+plot(prune.OJ)
+text(prune.OJ, pretty=0)
+```
+__(j)(k)__
+## train set performance
+
+```{r}
+prune.preds = predict(prune.OJ, type='class')
+tree.acc = mean(OJ[train,]$Purchase==prune.preds)
+tree.acc
+table(prune.preds, OJ[train,]$Purchase)
+```
+
+```{r}
+tree.preds = predict(tree.fit, type = 'class')
+tree.acc = mean(OJ[train,]$Purchase==tree.preds)
+tree.acc
+
+table(tree.preds, OJ[train,]$Purchase)
+```
+Predictions for the training set are slightly better for the complex tree
+
+## test set performance
+
+```{r}
+prune.preds = predict(prune.OJ, newdata=OJ.test, type='class')
+table(prune.preds, OJ.test$Purchase)
+```
+
+```{r}
+tree.preds = predict(tree.fit, newdata=OJ.test, type = 'class')
+tree.acc = mean(OJ.test$Purchase==tree.preds)
+tree.acc
+
+table(tree.preds, OJ.test$Purchase)
+```
+
+
+Predictions have slightly improved with the pruned tree on the test set
+
+
+
+# __(10)__
+```{r}
+detach(OJ)
+library(gbm)
+```
+__(a)(b)__
+```{r}
+
+Hitters = na.omit(Hitters)
+Hitters$logSalary = log(Hitters$Salary)
+
+Hitters.train = Hitters[1:200,]
+Hitters.test = Hitters[-(1:200),]
+dim(Hitters)
+dim(Hitters.train)
+dim(Hitters.test)
+
+```
+
+__(c)(d)__
+```{r}
+set.seed(1)
+shrinkage.range = seq(0.0001, 0.05, by=0.001)
+train.mse = rep(NA, length(shrinkage.range))
+test.mse = rep(NA, length(shrinkage.range))
+for (i in 1:length(shrinkage.range)){
+  boost.hitters = gbm(logSalary ~ .-Salary, data=Hitters.train
+                      , distribution="gaussian", n.trees=1000
+                      , shrinkage=shrinkage.range[i])
+  train.mse[i] = mean((predict(boost.hitters)-Hitters.train$logSalary)**2)
+  test.mse[i] = mean((predict(boost.hitters, newdata=Hitters.test)-Hitters.test$logSalary)**2)
+  
+}
+plot(x=shrinkage.range, train.mse, type='b', lwd=1, ylab="MSE", xlab="shrinkage param")
+lines(x=shrinkage.range, test.mse, type='b', lwd=1, col="blue")
+legend("topright", legend=c("train MSE", "test MSE"), col=c("black", "blue"), lwd=2)
+summary(boost.hitters)
+```
+__(e)__
+Chapter 3 used multiple linear regression
+```{r}
+lm.fit = lm(logSalary~.-Salary, data=Hitters.test)
+lm.preds = predict(lm.fit, newdata = Hitters.test)
+lm.mse = mean((Hitters.test$Salary-lm.preds)^2)
+lm.mse
+```
+
+
+Chapter 6 used Lasso
+```{r}
+library(glmnet)
+train = model.matrix(logSalary~.-Salary,Hitters.train)
+test = model.matrix(logSalary~.-Salary,Hitters.test)
+y.train = Hitters.train$logSalary
+lasso.mod = glmnet(train, y.train, alpha = 1)
+```
+
+```{r}
+set.seed(4)
+cv.out=cv.glmnet(train, y.train, alpha=1)
+bestlam=cv.out$lambda.min
+lasso.pred=predict(lasso.mod, s=bestlam, newx = test)
+mean((Hitters.test$logSalary-lasso.pred)^2)
+```
+
+Both MSE from multiple linear regression and Lasso are higher than the boosted model that is under 0.3
+
+
+__(f)__
+
+From the relative influence plot below, CAtBat has the highest influence followed by CHits
+```{r}
+summary(boost.hitters)
+```
+
+__(g)__
+```{r}
+bag.hitters = randomForest(logSalary~.-Salary, data=Hitters.train, mtry=dim(Hitters.train)[2]-2, importance=TRUE)
+bag.preds = predict(bag.hitters, newdata=Hitters.test)
+test_mse = mean((bag.preds-Hitters.test$logSalary)**2)
+# bagging MSE
+test_mse
+# vs boost test MSE
+test.mse[which.min(test.mse)]
+importance(bag.hitters)
+
+```
+
+# __(11)__
+
+__(a)(b)__
+```{r}
+set.seed(1)
+#Caravan$Purchase = as.numeric(Caravan$Purchase)-1
+train.caravan = Caravan[1:1000,]
+test.caravan = Caravan[-(1:1000),]
+```
+
+```{r}
+boost.caravan = gbm(Purchase ~ ., data=train.caravan
+                      , distribution="bernoulli", n.trees=1000
+                      , shrinkage=0.01)
+summary(boost.caravan)
+
+```
+The most influential variables seem to be PPERSAUT and MKOOPKLA.
+
+
+```{r}
+caravan.preds = (predict(boost.caravan, newdata=test.caravan, type='response') > 0.2)*1
+sum(test.caravan$Purchase)/length(test.caravan$Purchase)
+table(caravan.preds, test.caravan$Purchase)
+33/156
+```
+33/156 people predicted to make a purchase actually make one
+
+Logistic Regression
+
+```{r}
+log.fit = glm(Purchase~., train.caravan, family='binomial')
+summary(log.fit)
+
+log.preds = (predict(log.fit, newdata=test.caravan, type='response')>0.2)*1
+table(log.preds, test.caravan$Purchase)
+58/408
+```
+More customers are predicted to make a purchase at the expense of misclassifying non buyers.
+
+KNN
+```{r}
+library(class)
+knn.pred = knn(train.caravan[,-86], test.caravan[,-86], train.caravan$Purchase, k=4)
+table(knn.pred, test.caravan$Purchase)
+
+```
+KNN does worst of all. Probably because of the class imbalance between Purchasers and non-purchasers which makes this algorithm work particularly bad.
+
+
+
