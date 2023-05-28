@@ -26,13 +26,13 @@ attach(Boston)
 library(tree)
 library(randomForest)
 require(caTools)
-set.seed(1)
 ```
 
 # __(7)__
 
 ```{r}
 # split test and train set
+set.seed(1)
 train = sample(1:nrow(Boston), nrow(Boston)*0.8)
 Boston.test = Boston[-train,]
 
@@ -408,5 +408,80 @@ table(knn.pred, test.caravan$Purchase)
 ```
 KNN does worst of all. Probably because of the class imbalance between Purchasers and non-purchasers which makes this algorithm work particularly bad.
 
+# __(12)__
+Boosting, Bagging, random forest and BART on the Bikeshare dataset.
+
+```{r}
+help("Bikeshare")
+```
+
+```{r}
+set.seed(1)
+train = sample(1:nrow(Bikeshare), nrow(Bikeshare)*0.8)
+train.set = Bikeshare[train,-13][,-13]
+test.set = Bikeshare[-train,-13][,-13]
+```
 
 
+```{r}
+#boost.bike = gbm(bikers~., train.set, )
+
+depth.range = seq(1, 6, by=1)
+train.mse = rep(NA, length(depth.range))
+test.mse = rep(NA, length(depth.range))
+for (i in 1:length(depth.range)){
+  boost.bike = gbm(bikers ~ ., data=train.set
+                      , distribution="gaussian", n.trees=1000
+                      , interaction.depth=depth.range[i])
+  train.mse[i] = mean((predict(boost.bike)-train.set$bikers)**2)
+  test.mse[i] = mean((predict(boost.bike, newdata=test.set)-test.set$bikers)**2)
+  
+}
+
+plot(x=depth.range, train.mse, type='b', lwd=1, ylab="MSE", xlab="shrinkage param")
+lines(x=depth.range, test.mse, type='b', lwd=1, col="blue")
+legend("topright", legend=c("train MSE", "test MSE"), col=c("black", "blue"), lwd=2)
+summary(boost.bike)
+```
+```{r}
+boost.bike = gbm(bikers ~ ., data=train.set
+                      , distribution="gaussian", n.trees=1000
+                      , interaction.depth=3, shrinkage=0.1)
+mean((predict(boost.bike)-train.set$bikers)**2)
+mean((predict(boost.bike, newdata=test.set)-test.set$bikers)**2)
+```
+
+
+
+
+Bagging
+```{r}
+bag.bike = randomForest(bikers ~ ., data=train.set
+                    , ntrees=100, mtry=dim(train.set)[2]-1)
+mean((predict(bag.bike)-train.set$bikers)**2)
+mean((predict(bag.bike, newdata=test.set)-test.set$bikers)**2)
+```
+
+Random Forest
+```{r}
+rf.bike = randomForest(bikers ~ ., data=train.set
+                  , ntrees=100, mtry=sqrt(dim(train.set)[2]-1))
+mean((predict(rf.bike)-train.set$bikers)**2)
+mean((predict(rf.bike, newdata=test.set)-test.set$bikers)**2)
+
+
+```
+
+BART
+```{r}
+library(BART)
+
+bart.bike = gbart(train.set[,-13], train.set$bikers, test.set[,-13])
+
+yhat.bart = bart.bike$yhat.test.mean
+mean((test.set$bikers-yhat.bart)**2)
+```
+
+BART and bagging methods have similar test error rates.
+Random Forest (with sqrt(p) parameters) has significantly larger test error,
+Boosting outperforms al lwhen setting interaction depth to 3 and shrinkage to 0.1 (crossvalidated)
