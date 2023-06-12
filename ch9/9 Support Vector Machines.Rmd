@@ -1,0 +1,17 @@
+---
+title: "Ch. 9 Support Vector Machines"
+output:
+  html_document: default
+---
+
+# Conceptual
+
+
+
+# Applied
+
+
+```{r}
+
+```
+
