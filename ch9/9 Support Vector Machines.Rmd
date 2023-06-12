@@ -10,8 +10,93 @@ output:
 
 # Applied
 
+# __(4)__
+```{r}
+library(e1071)
+
+```
+
 
 ```{r}
+set.seed(1)
+x = matrix(rnorm(100*2), ncol=2)
+err = rnorm(100,mean=0, 0.5)
+y = x[,1]**3+x[,2]**2 + err > 1
+
+dat = data.frame(x=x, y=as.factor(as.integer(y)))
+dat.train = dat[1:80,]
+dat.test = dat[81:100,]
+plot(x[,2], x[,1], col=(2-y))
+
+```
+### linear kernel
+```{r}
+svmfit = svm(y~., data=dat.train, kernel='linear', cost=10)
+plot(svmfit, dat.train, xlim=c(-2,2), ylim=c(-2,2))
+svmfit$index
+
+train.pred = predict(svmfit)
+table(train.pred, dat.train$y)
+test.pred = predict(svmfit, newdata=dat.test)
+table(test.pred, dat.test$y)
+
+sum(train.pred==dat.train$y) / length(dat.train$y)
+sum(test.pred==dat.test$y) / length(dat.test$y)
+
+```
+### Polynomial kernel
+```{r}
+tune.out = tune(svm, y~., data=dat.train, kernel='polynomial'
+              , ranges = list(
+                  degree=c(2, 3, 4, 5)
+                  , cost=c(0.1, 1, 10, 100, 1000)))
+summary(tune.out)
+
+plot(tune.out$best.model, dat.train, xlim=c(-2,2), ylim=c(-2,2))
+
+#svmfit$index
+#
+#train.pred = predict(svmfit)
+#table(train.pred, dat.train$y)
+test.pred = predict(tune.out$best.model, newdata=dat.test)
+table(test.pred, dat.test$y)
+#
+#sum(train.pred==dat.train$y) / length(dat.train$y)
+sum(test.pred==dat.test$y) / length(dat.test$y)
+```
+Accuracy of 60% on the test set with degree 4 polynomial kernel. according to crossvalidation selection.
+
+
+### Radial kernel
+
+```{r}
+tune.out = tune(svm, y~., data=dat.train, kernel='radial'
+              , ranges = list(
+                  gamma=seq(0.5, 4, by=0.5)
+                  , cost=c(0.1, 1, 10, 100, 1000)))
+summary(tune.out)
+plot(tune.out$best.model, dat.train, xlim=c(-2,2), ylim=c(-2,2))
+
+#svmfit$index
+#
+#train.pred = predict(svmfit)
+#table(train.pred, dat.train$y)
+test.pred = predict(tune.out$best.model, newdata=dat.test)
+table(test.pred, dat.test$y)
+#
+#sum(train.pred==dat.train$y) / length(dat.train$y)
+sum(test.pred==dat.test$y) / length(dat.test$y)
+```
+The best performer on the test set is the radial kernel with 70% accuracy. 
+The shape also resembles more to the original function (X1^3 + X2^2)
+
+
+# __(5)__
+
+```{r}
+x1 <- runif (500) - 0.5
+x2 <- runif (500) - 0.5
+y <- 1 * (x1 ^2 - x2 ^2 > 0)
 
 ```
 
