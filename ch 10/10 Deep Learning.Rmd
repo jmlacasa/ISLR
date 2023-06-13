@@ -1,0 +1,5 @@
+---
+title: "ch 10 Deep Learning"
+output:
+  html_document: default
+---

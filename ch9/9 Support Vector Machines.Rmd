@@ -77,14 +77,11 @@ tune.out = tune(svm, y~., data=dat.train, kernel='radial'
 summary(tune.out)
 plot(tune.out$best.model, dat.train, xlim=c(-2,2), ylim=c(-2,2))
 
-#svmfit$index
-#
-#train.pred = predict(svmfit)
-#table(train.pred, dat.train$y)
+
 test.pred = predict(tune.out$best.model, newdata=dat.test)
 table(test.pred, dat.test$y)
 #
-#sum(train.pred==dat.train$y) / length(dat.train$y)
+
 sum(test.pred==dat.test$y) / length(dat.test$y)
 ```
 The best performer on the test set is the radial kernel with 70% accuracy. 
@@ -93,10 +90,330 @@ The shape also resembles more to the original function (X1^3 + X2^2)
 
 # __(5)__
 
+__(a)(b)__
 ```{r}
+set.seed(1)
 x1 <- runif (500) - 0.5
 x2 <- runif (500) - 0.5
 y <- 1 * (x1 ^2 - x2 ^2 > 0)
+plot(x1, x2, col=(2-y))
+```
+
+```{r}
+# log regression using linear x1 and x2
+glm.fit = glm(y~x1+x2, family='binomial')
+
+names(glm.fit)
+plot(x1, x2, col=(2-(predict(glm.fit, type='response')>.5)))
+```
+__(e)(f)__
+```{r}
+# log regression using quadratic values of x1 and x2
+glm.fit = glm(y~I(x1^2)+I(x2^2) + x1*x2, family='binomial')
+
+(glm.fit$coefficients)
+plot(x1, x2, col=(2-(predict(glm.fit, type='response')>.5)))
+```
+the shape is almost identical to the true values of y
+
+__(h)__
+
+```{r}
+tune.out = tune(svm, y~x1+x2, kernel='polynomial'
+              , ranges = list(
+                  degree=c(2, 3, 4)
+                  , cost=c(0.1, 1, 10)))
+summary(tune.out)
+
+plot(x1, x2, col=(2-(predict(tune.out$best.model, type='response')>.5)))
+```
+
+```{r}
+radial.tune.out = tune(svm, y~x1+x2, kernel='radial'
+              , ranges = list(
+                  gamma=seq(0.5, 2, by=0.5)
+                  , cost=c(0.1, 1, 10)))
+summary(tune.out)
+plot(x1, x2, col=(2-(predict(radial.tune.out$best.model, type='response')>.5)))
+```
+
+__(i)__
+
+the fit between logistic regression and SVM is similar after visual inspection.
+Further confirmation and comparison could be drawn by calculating accuracy scores and confusion matrices
+
+
+__(6)__
+
+```{r}
+set.seed(1)
+x1 <- runif (500) - 0.5
+x2 <- runif (500) - 0.5
+err = rnorm(500, sd=0.05)
+y <- 1 * (x1 - x2 + err > 0)
+plot(x1, x2, col=(2-y))
+abline(0,1,col='blue')
+# separable by line with added random noise
+```
+
+```{r}
+tune.out = tune(svm, y~x1+x2, kernel='linear'
+              , ranges = list(cost=c(0.001, 0.01, 0.1, 1, 10, 100, 1000)))
+summary(tune.out)
+```
+
+
+```{r}
+x1.test <- runif (500) - 0.5
+x2.test <- runif (500) - 0.5
+y.test <- 1 * (x1.test - x2.test > 0)
+plot(x1.test, x2.test, col=(2-y.test))
+abline(0,1,col='blue')
+```
+
+
+__(7)__
+```{r}
+library(ISLR2)
+```
+
+__(a)__
+
+```{r}
+Auto.mod = Auto
+Auto.mod$mpg = 1*(Auto.mod$mpg>median(Auto.mod$mpg))
+```
+
+
+__(b)__
+```{r}
+names(Auto.mod)
+```
+
+
+```{r}
+tune.out = tune(svm, mpg~., data=Auto.mod, kernel='linear', ranges=list(cost=c(.001, .01, .1, 1, 5, 10, 100, 500)))
+
+summary(tune.out)
+plot(tune.out$performances[-3], type='b')
+
 
 ```
+
+Lowest cv error rate is at cost=1 for the various costs values tested.
+for very high values the cost seems to level off at 130
+
+
+
+
+
+__(c)__
+
+```{r}
+tune.out = tune(svm, mpg~., data=Auto.mod, kernel='radial', ranges=list(gamma=seq(0.5, 3, by=0.5), cost=c(.001, .01, .1, 1, 5, 10, 100, 500)))
+
+summary(tune.out)
+
+```
+
+```{r}
+tune.out = tune(svm, mpg~., data=Auto.mod, kernel='polynomial', ranges=list(degree=seq(1,4), cost=c(.001, .01, .1, 1, 5, 10, 100, 500)))
+
+summary(tune.out)
+
+
+```
+
+
+For both radial and polynomial kernels, the error is much higher.
+Polynomial of degree 1 (linear) performs best of all. 
+evidence shows that the decision boundary is probably linear
+
+
+__(8)__
+
+```{r}
+require(caTools)
+```
+
+__(a)__
+```{r}
+set.seed(1)
+train = sample(1:dim(OJ)[1], 800)
+OJ.train = OJ[train,]
+OJ.test = OJ[-train,]
+dim(OJ.train)
+dim(OJ.test)
+```
+
+
+__(b)__
+
+```{r}
+svm.fit = svm(Purchase~., OJ.train, kernel='linear', cost=0.01)
+summary(svm.fit)
+
+```
+
+The support vectors are over 50% of train observations which means the margin of the decision boundary includes theover 50% of training observations.
+
+
+
+__(c)__
+```{r}
+# train
+table(predicted=predict(svm.fit, newdata=OJ.train, type='response'),true=OJ.train$Purchase)
+```
+
+
+```{r}
+# test
+table(predicted=predict(svm.fit, newdata=OJ.test, type='response'),true=OJ.test$Purchase)
+```
+
+train error rate is 0.175
+test error rate is 0.178
+slightly higher test error rate
+
+
+__(d)__
+```{r}
+tune.out = tune(svm, Purchase~., data=OJ.train, kernel='linear', ranges=list(cost=seq(0.1, 10, by=0.5)))
+summary(tune.out)
+```
+best performing cost is around 8 (8.1 according to the values tested)
+
+__(e)__
+
+```{r}
+# train
+table(predicted=predict(tune.out$best.model, newdata=OJ.train, type='response'),true=OJ.train$Purchase)
+```
+
+```{r}
+# test
+table(predicted=predict(tune.out$best.model, newdata=OJ.test, type='response'),true=OJ.test$Purchase)
+```
+
+```{r}
+(62+68)/800
+(12+29)/270
+```
+train error rate is 0.1625
+test error rate is 0.1518
+
+using the new "cost" value improves the performance slightly
+
+
+
+__(f)__
+
+repeating b-e with a radial kernel
+
+
+```{r}
+svm.fit = svm(Purchase~., OJ.train, kernel='radial', cost=0.01)
+summary(svm.fit)
+
+```
+
+Even higher number of support vectors.
+
+```{r}
+# train
+table(predicted=predict(svm.fit, newdata=OJ.train, type='response'),true=OJ.train$Purchase)
+```
+
+
+```{r}
+# test
+table(predicted=predict(svm.fit, newdata=OJ.test, type='response'),true=OJ.test$Purchase)
+```
+
+classifies everything as CH.
+
+
+```{r}
+tune.out = tune(svm, Purchase~., data=OJ.train, kernel='radial', ranges=list(cost=seq(0.01, 10, by=0.5)))
+summary(tune.out)
+```
+best performing cost is around 0.51 according to the values tested
+
+
+```{r}
+# train
+table(predicted=predict(tune.out$best.model, newdata=OJ.train, type='response'),true=OJ.train$Purchase)
+```
+
+```{r}
+# test
+table(predicted=predict(tune.out$best.model, newdata=OJ.test, type='response'),true=OJ.test$Purchase)
+```
+
+```{r}
+(47+72)/800
+(18+30)/270
+```
+
+__(e)__
+
+repeating b-e with a polynomial kernel with degree = 2
+
+
+```{r}
+svm.fit = svm(Purchase~., OJ.train, kernel='polynomial', degree=2, cost=0.01)
+summary(svm.fit)
+
+
+```
+
+similar number of support vectors as the radial kernel.
+
+```{r}
+# train
+table(predicted=predict(svm.fit, newdata=OJ.train, type='response'),true=OJ.train$Purchase)
+```
+
+
+```{r}
+# test
+table(predicted=predict(svm.fit, newdata=OJ.test, type='response'),true=OJ.test$Purchase)
+```
+
+classifies almost everything as CH.
+
+
+```{r}
+tune.out = tune(svm, Purchase~., data=OJ.train, kernel='polynomial', degree=2, ranges=list(cost=seq(0.01, 10, by=0.5)))
+summary(tune.out)
+```
+best performing cost is around 3.51 according to the values tested
+
+
+```{r}
+# train
+table(predicted=predict(tune.out$best.model, newdata=OJ.train, type='response'),true=OJ.train$Purchase)
+```
+
+```{r}
+# test
+table(predicted=predict(tune.out$best.model, newdata=OJ.test, type='response'),true=OJ.test$Purchase)
+```
+
+```{r}
+(88+35)/800
+(13+41)/270
+```
+Polynomial kernel has the highest error values
+
+__(h)__ 
+the best approach seems to be the linear kernel which had the lowest test error rate once we optimized cost value.
+Although both polynomial and radial methods had lower training error rate, they had higher test error rate. Which suggests overfitting to the data.
+
+
+Additional testing could be done trying to optimize gamma values for the radial kernel since the default value was used.
+
+
+
+
 
